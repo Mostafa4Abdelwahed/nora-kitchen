@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AppSwitcher from "../components/AppSwitcher";
+import { useLocalList, setLocalList } from "../components/useLocalList";
 import { bonuses, CATEGORIES, recipes, type Recipe } from "./data";
 
 type View = "recipes" | "calculator" | "grocery" | "pantry" | "cook" | "bonuses";
@@ -17,15 +18,6 @@ const TABS: { id: View; label: string }[] = [
 
 const PAGE_SIZE = 60;
 
-function safeLoad(key: string): string[] | number[] {
-  try {
-    const value = JSON.parse(window.localStorage.getItem(key) || "[]");
-    return Array.isArray(value) ? value : [];
-  } catch {
-    return [];
-  }
-}
-
 export default function CleanKitchenUltimate() {
   const [view, setView] = useState<View>("recipes");
   const [search, setSearch] = useState("");
@@ -33,11 +25,10 @@ export default function CleanKitchenUltimate() {
   const [level, setLevel] = useState("All");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [completedOnly, setCompletedOnly] = useState(false);
-  const [favs, setFavs] = useState<number[]>([]);
-  const [completed, setCompleted] = useState<number[]>([]);
-  const [grocery, setGrocery] = useState<string[]>([]);
-  const [pantry, setPantry] = useState<string[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const favs = useLocalList<number>("cku_favs");
+  const completed = useLocalList<number>("cku_done");
+  const grocery = useLocalList<string>("cku_grocery");
+  const pantry = useLocalList<string>("cku_pantry");
   const [currentPage, setCurrentPage] = useState(1);
   const [openRecipeId, setOpenRecipeId] = useState<number | null>(null);
   const [openBonusIndex, setOpenBonusIndex] = useState<number | null>(null);
@@ -46,14 +37,6 @@ export default function CleanKitchenUltimate() {
   const [pantryInput, setPantryInput] = useState("");
   const [ingredientSearch, setIngredientSearch] = useState("");
   const [cookResults, setCookResults] = useState<Recipe[] | null>(null);
-
-  useEffect(() => {
-    setFavs(safeLoad("cku_favs") as number[]);
-    setCompleted(safeLoad("cku_done") as number[]);
-    setGrocery(safeLoad("cku_grocery") as string[]);
-    setPantry(safeLoad("cku_pantry") as string[]);
-    setLoaded(true);
-  }, []);
 
   useEffect(() => {
     document.body.style.overflow =
@@ -92,27 +75,18 @@ export default function CleanKitchenUltimate() {
   const targetServings = Math.max(1, Number(newServings) || 1);
   const ratio = targetServings / calcRecipe.servings;
 
-  function store(key: string, value: unknown) {
-    if (!loaded) return;
-    try {
-      window.localStorage.setItem(key, JSON.stringify(value));
-    } catch {}
-  }
-
   function toggleFav(id: number) {
     const next = favs.includes(id)
       ? favs.filter((x) => x !== id)
       : [...favs, id];
-    setFavs(next);
-    store("cku_favs", next);
+    setLocalList("cku_favs", next);
   }
 
   function toggleDone(id: number) {
     const next = completed.includes(id)
       ? completed.filter((x) => x !== id)
       : [...completed, id];
-    setCompleted(next);
-    store("cku_done", next);
+    setLocalList("cku_done", next);
   }
 
   function toggleFavorites() {
@@ -138,19 +112,16 @@ export default function CleanKitchenUltimate() {
     const set = new Set(grocery);
     r.ingredients.forEach((x) => set.add(x));
     const next = [...set];
-    setGrocery(next);
-    store("cku_grocery", next);
+    setLocalList("cku_grocery", next);
   }
 
   function removeGrocery(i: number) {
     const next = grocery.filter((_, j) => j !== i);
-    setGrocery(next);
-    store("cku_grocery", next);
+    setLocalList("cku_grocery", next);
   }
 
   function clearGrocery() {
-    setGrocery([]);
-    store("cku_grocery", []);
+    setLocalList("cku_grocery", []);
   }
 
   function addPantry() {
@@ -161,15 +132,13 @@ export default function CleanKitchenUltimate() {
       return;
     }
     const next = [...pantry, v];
-    setPantry(next);
-    store("cku_pantry", next);
+    setLocalList("cku_pantry", next);
     setPantryInput("");
   }
 
   function removePantry(i: number) {
     const next = pantry.filter((_, j) => j !== i);
-    setPantry(next);
-    store("cku_pantry", next);
+    setLocalList("cku_pantry", next);
   }
 
   function findByIngredients() {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AppSwitcher from "../components/AppSwitcher";
+import { useLocalList, setLocalList } from "../components/useLocalList";
 import {
   CATEGORIES,
   goldenTea,
@@ -34,15 +35,6 @@ const TABS: { id: View; label: string }[] = [
   { id: "tools", label: "📋 Pantry" },
 ];
 
-function safeLoad(key: string): string[] | number[] {
-  try {
-    const value = JSON.parse(window.localStorage.getItem(key) || "[]");
-    return Array.isArray(value) ? value : [];
-  } catch {
-    return [];
-  }
-}
-
 export default function CleanBakeApp() {
   const [view, setView] = useState<View>("recipes");
   const [search, setSearch] = useState("");
@@ -50,23 +42,15 @@ export default function CleanBakeApp() {
   const [level, setLevel] = useState("All");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [completedOnly, setCompletedOnly] = useState(false);
-  const [favs, setFavs] = useState<number[]>([]);
-  const [completed, setCompleted] = useState<number[]>([]);
-  const [grocery, setGrocery] = useState<string[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const favs = useLocalList<number>("cb_favs");
+  const completed = useLocalList<number>("cb_done");
+  const grocery = useLocalList<string>("cb_grocery");
   const [openRecipeId, setOpenRecipeId] = useState<number | null>(null);
   const [openMetabolicIndex, setOpenMetabolicIndex] = useState<number | null>(
     null,
   );
   const [calcRecipeId, setCalcRecipeId] = useState<number>(recipes[0].id);
   const [newServings, setNewServings] = useState<string>("2");
-
-  useEffect(() => {
-    setFavs(safeLoad("cb_favs") as number[]);
-    setCompleted(safeLoad("cb_done") as number[]);
-    setGrocery(safeLoad("cb_grocery") as string[]);
-    setLoaded(true);
-  }, []);
 
   useEffect(() => {
     document.body.style.overflow =
@@ -105,27 +89,18 @@ export default function CleanBakeApp() {
   const targetServings = Math.max(1, Number(newServings) || 1);
   const ratio = targetServings / calcRecipe.servings;
 
-  function store(key: string, value: unknown) {
-    if (!loaded) return;
-    try {
-      window.localStorage.setItem(key, JSON.stringify(value));
-    } catch {}
-  }
-
   function toggleFav(id: number) {
     const next = favs.includes(id)
       ? favs.filter((x) => x !== id)
       : [...favs, id];
-    setFavs(next);
-    store("cb_favs", next);
+    setLocalList("cb_favs", next);
   }
 
   function toggleDone(id: number) {
     const next = completed.includes(id)
       ? completed.filter((x) => x !== id)
       : [...completed, id];
-    setCompleted(next);
-    store("cb_done", next);
+    setLocalList("cb_done", next);
   }
 
   function toggleFavorites() {
@@ -149,19 +124,16 @@ export default function CleanBakeApp() {
     const set = new Set(grocery);
     r.ingredients.forEach((x) => set.add(x));
     const next = [...set];
-    setGrocery(next);
-    store("cb_grocery", next);
+    setLocalList("cb_grocery", next);
   }
 
   function removeGrocery(i: number) {
     const next = grocery.filter((_, j) => j !== i);
-    setGrocery(next);
-    store("cb_grocery", next);
+    setLocalList("cb_grocery", next);
   }
 
   function clearGrocery() {
-    setGrocery([]);
-    store("cb_grocery", []);
+    setLocalList("cb_grocery", []);
   }
 
   return (

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, Playfair_Display } from "next/font/google";
 import CleanCakesApp from "./CleanCakesApp";
 import "./styles.css";
@@ -20,6 +20,10 @@ export const metadata: Metadata = {
   description:
     "410 complete sugar-free baking recipes plus premium bonus guides.",
   robots: { index: false, follow: false },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#38281f",
 };
 
 export default function Page() {

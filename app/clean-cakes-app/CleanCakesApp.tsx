@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AppSwitcher from "../components/AppSwitcher";
+import { useLocalList, setLocalList } from "../components/useLocalList";
 import {
   fixes,
   frostings,
@@ -31,21 +32,6 @@ const CATEGORIES = [
   "Bars & No-Bake",
 ];
 
-function safeLoad(key: string): number[] {
-  try {
-    const value = JSON.parse(window.localStorage.getItem(key) || "[]");
-    return Array.isArray(value) ? (value as number[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function safeStore(key: string, value: number[]) {
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {}
-}
-
 function summaryFor(r: Recipe) {
   let oven = "See method";
   let pan = "See method";
@@ -68,25 +54,10 @@ export default function CleanCakesApp() {
   const [level, setLevel] = useState("All");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [completedOnly, setCompletedOnly] = useState(false);
-  const [favs, setFavs] = useState<number[]>([]);
-  const [completed, setCompleted] = useState<number[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const favs = useLocalList<number>("cc_favs");
+  const completed = useLocalList<number>("cc_done");
   const [openRecipeId, setOpenRecipeId] = useState<number | null>(null);
   const [openFrostIndex, setOpenFrostIndex] = useState<number | null>(null);
-
-  useEffect(() => {
-    setFavs(safeLoad("cc_favs"));
-    setCompleted(safeLoad("cc_done"));
-    setLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    if (loaded) safeStore("cc_favs", favs);
-  }, [favs, loaded]);
-
-  useEffect(() => {
-    if (loaded) safeStore("cc_done", completed);
-  }, [completed, loaded]);
 
   useEffect(() => {
     document.body.style.overflow =
@@ -122,15 +93,17 @@ export default function CleanCakesApp() {
     openFrostIndex !== null ? frostings[openFrostIndex] ?? null : null;
 
   function toggleFav(id: number) {
-    setFavs((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+    const next = favs.includes(id)
+      ? favs.filter((x) => x !== id)
+      : [...favs, id];
+    setLocalList("cc_favs", next);
   }
 
   function toggleDone(id: number) {
-    setCompleted((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+    const next = completed.includes(id)
+      ? completed.filter((x) => x !== id)
+      : [...completed, id];
+    setLocalList("cc_done", next);
   }
 
   function toggleFavorites() {
