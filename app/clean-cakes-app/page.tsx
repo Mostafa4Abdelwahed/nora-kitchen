@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Caveat, Nunito_Sans } from "next/font/google";
 import CleanCakesApp from "./CleanCakesApp";
-import "./styles.css";
+import "../components/clean-ui.css";
 
 const nunitoSans = Nunito_Sans({
   subsets: ["latin"],
@@ -29,7 +29,7 @@ export const viewport: Viewport = {
 
 export default function Page() {
   return (
-    <div className={`cc flex-1 ${nunitoSans.variable} ${caveat.variable}`}>
+    <div className={`nkw flex-1 ${nunitoSans.variable} ${caveat.variable}`}>
       <CleanCakesApp />
     </div>
   );

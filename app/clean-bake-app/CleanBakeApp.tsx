@@ -1,7 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import AppSwitcher from "../components/AppSwitcher";
+import {
+  PAGE,
+  ICONS,
+  Logo,
+  Stars,
+  ratingFor,
+  reviewsFor,
+} from "../components/clean-ui";
 import { useLocalList, setLocalList } from "../components/useLocalList";
 import {
   CATEGORIES,
@@ -10,8 +19,6 @@ import {
   metabolic,
   recipes,
   shopping,
-  type BonusRecipe,
-  type Recipe,
 } from "./data";
 
 type View =
@@ -24,16 +31,23 @@ type View =
   | "tea"
   | "tools";
 
-const TABS: { id: View; label: string }[] = [
-  { id: "recipes", label: "🥗 400 Recipes" },
-  { id: "calculator", label: "🧮 Portion Calculator" },
-  { id: "grocery", label: "🛒 Grocery List" },
-  { id: "bonuses", label: "⭐ Bonuses" },
-  { id: "metabolic", label: "🥗 Metabolic Recipes" },
-  { id: "meds", label: "⚠ Medication & Supplement Guide" },
-  { id: "tea", label: "🍵 Golden Tea" },
-  { id: "tools", label: "📋 Pantry" },
-];
+const CAT_TAG: Record<string, string> = {
+  Breakfast: "High Protein",
+  Breads: "Fresh",
+  Desserts: "Sweet",
+  Snacks: "Quick",
+  Drinks: "Refreshing",
+  Sides: "Healthy",
+};
+
+const COVER_CLASS: Record<string, string> = {
+  Breakfast: "gbreak",
+  Breads: "gloaf",
+  Desserts: "gdessert",
+  Snacks: "gsnack",
+  Drinks: "gdrink",
+  Sides: "gside",
+};
 
 export default function CleanBakeApp() {
   const [view, setView] = useState<View>("recipes");
@@ -42,6 +56,9 @@ export default function CleanBakeApp() {
   const [level, setLevel] = useState("All");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [completedOnly, setCompletedOnly] = useState(false);
+  const [drawer, setDrawer] = useState(false);
+  const [limit, setLimit] = useState(PAGE);
+  const sentinel = useRef<HTMLButtonElement | null>(null);
   const favs = useLocalList<number>("cb_favs");
   const completed = useLocalList<number>("cb_done");
   const grocery = useLocalList<string>("cb_grocery");
@@ -54,11 +71,13 @@ export default function CleanBakeApp() {
 
   useEffect(() => {
     document.body.style.overflow =
-      openRecipeId !== null || openMetabolicIndex !== null ? "hidden" : "";
+      openRecipeId !== null || openMetabolicIndex !== null || drawer
+        ? "hidden"
+        : "";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [openRecipeId, openMetabolicIndex]);
+  }, [openRecipeId, openMetabolicIndex, drawer]);
 
   const q = search.trim().toLowerCase();
   const rows = recipes.filter((r) => {
@@ -72,17 +91,39 @@ export default function CleanBakeApp() {
       (!completedOnly || completed.includes(r.id))
     );
   });
-  const resultText =
-    (favoritesOnly ? "Favorites • " : "") +
-    (completedOnly ? "Completed • " : "") +
-    `${rows.length} recipes shown`;
+
+  const visibleCount = Math.min(limit, rows.length);
+  const visible = rows.slice(0, visibleCount);
+  const hasMore = visibleCount < rows.length;
+
+  const filterKey = `${search}|${category}|${level}|${favoritesOnly}|${completedOnly}|${view}`;
+  const [prevKey, setPrevKey] = useState(filterKey);
+  if (prevKey !== filterKey) {
+    setPrevKey(filterKey);
+    setLimit(PAGE);
+  }
+
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el || !hasMore) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setLimit((l) => l + PAGE);
+        }
+      },
+      { rootMargin: "700px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, view]);
 
   const openRecipe =
     openRecipeId !== null
       ? recipes.find((r) => r.id === openRecipeId) ?? null
       : null;
   const openMetabolic =
-    openMetabolicIndex !== null ? metabolic[openMetabolicIndex] : null;
+    openMetabolicIndex !== null ? metabolic[openMetabolicIndex] ?? null : null;
 
   const calcRecipe =
     recipes.find((r) => r.id === calcRecipeId) ?? recipes[0];
@@ -120,11 +161,10 @@ export default function CleanBakeApp() {
     setCompletedOnly(false);
   }
 
-  function addRecipeToGrocery(r: Recipe | BonusRecipe) {
+  function addRecipeToGrocery(ingredients: string[]) {
     const set = new Set(grocery);
-    r.ingredients.forEach((x) => set.add(x));
-    const next = [...set];
-    setLocalList("cb_grocery", next);
+    ingredients.forEach((x) => set.add(x));
+    setLocalList("cb_grocery", [...set]);
   }
 
   function removeGrocery(i: number) {
@@ -136,184 +176,219 @@ export default function CleanBakeApp() {
     setLocalList("cb_grocery", []);
   }
 
+  function focusSearch() {
+    document.getElementById("cb-search")?.focus();
+  }
+
+  function goHome() {
+    setView("recipes");
+    setCategory("All");
+    setSearch("");
+    resetFilterToggles();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   return (
     <>
       <header className="top">
         <div className="wrap topin">
-          <div className="brand">
-            <div className="mark">🥗</div>
-            <div>
-              Clean Bake App
-              <small>400 recipes • lifetime access</small>
-            </div>
-          </div>
-          <AppSwitcher />
+          <button
+            className="burger"
+            aria-label="Open menu"
+            onClick={() => setDrawer(true)}
+          >
+            {ICONS.burger}
+          </button>
+
+          <Logo onHome={goHome} />
+
+          <nav className="navRight">
+            <AppSwitcher />
+            <button className="iconBtn" aria-label="Search" onClick={focusSearch}>
+              {ICONS.search}
+            </button>
+          </nav>
+
+          <button
+            className="iconBtn mSearch"
+            aria-label="Search"
+            onClick={focusSearch}
+          >
+            {ICONS.search}
+          </button>
         </div>
       </header>
 
-      <section className="wrap hero">
-        <div className="heroBox">
-          <div>
-            <span className="kicker">LIFETIME ACCESS</span>
-            <h1>Your Complete Clean Bake Recipe App</h1>
-            <p>
-              400 recipes, built-in portion calculator, automatic grocery list
-              and three premium bonuses — all organized in one simple app.
-            </p>
-          </div>
-          <div className="stats">
-            <div className="stat">
-              <b>400</b>
-              <span>Complete recipes</span>
-            </div>
-            <div className="stat">
-              <b>3</b>
-              <span>Premium bonuses</span>
-            </div>
-            <div className="stat">
-              <b>8</b>
-              <span>Recipe categories</span>
-            </div>
-            <div className="stat">
-              <b>{completed.length}</b>
-              <span>Recipes completed</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <main className="wrap">
-        <div className="toolbar">
+      <div className="wrap find">
+        <div className="searchBar">
+          {ICONS.search}
           <input
-            className="field"
-            placeholder="Search bread, chocolate, breakfast, lemon..."
+            id="cb-search"
+            placeholder={`Search ${recipes.length}+ recipes...`}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               resetFilterToggles();
+              if (view !== "recipes") setView("recipes");
             }}
           />
-          <select
-            className="field"
-            value={category}
-            onChange={(e) => {
-              setCategory(e.target.value);
-              resetFilterToggles();
-            }}
-          >
-            <option value="All">All categories</option>
-            {CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-          <select
-            className="field"
-            value={level}
-            onChange={(e) => {
-              setLevel(e.target.value);
-              resetFilterToggles();
-            }}
-          >
-            <option>All</option>
-            <option>Easy</option>
-            <option>Medium</option>
-          </select>
         </div>
+      </div>
 
-        <div className="tabs">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              className={`tab${view === t.id ? " on" : ""}`}
-              onClick={() => setView(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <section id="recipesView" className={view === "recipes" ? undefined : "hide"}>
-          <div className="sectionHead">
-            <div>
-              <h2>Recipe Library</h2>
-              <p>{resultText}</p>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn light" onClick={toggleFavorites}>
-                ♡ Favorites
+      <main className="wrap">
+        <section
+          id="recipesView"
+          className={view === "recipes" ? undefined : "secHide"}
+        >
+          <div className="pillsRow">
+            {["All", ...CATEGORIES].map((c) => (
+              <button
+                key={c}
+                className={`pillC${category === c ? " on" : ""}`}
+                onClick={() => {
+                  setCategory(c);
+                  resetFilterToggles();
+                }}
+              >
+                {c}
               </button>
-              <button className="btn light" onClick={toggleCompleted}>
-                ✓ Completed
+            ))}
+          </div>
+
+          <div className="resultRow">
+            <p className="count">
+              {favoritesOnly ? "Favorites • " : ""}
+              {completedOnly ? "Completed • " : ""}
+              {rows.length} of {recipes.length} recipes
+            </p>
+            <div className="miniCtl">
+              <select
+                className={`mini${level !== "All" ? " on" : ""}`}
+                value={level}
+                aria-label="Filter by level"
+                onChange={(e) => {
+                  setLevel(e.target.value);
+                  resetFilterToggles();
+                }}
+              >
+                <option value="All">Level: All</option>
+                <option value="Easy">Easy</option>
+                <option value="Medium">Medium</option>
+              </select>
+              <button
+                className={`mini sq${favoritesOnly ? " on" : ""}`}
+                aria-label="Show only favorites"
+                aria-pressed={favoritesOnly}
+                onClick={toggleFavorites}
+              >
+                {ICONS.heart}
+              </button>
+              <button
+                className={`mini sq${completedOnly ? " on" : ""}`}
+                aria-label="Show only completed"
+                aria-pressed={completedOnly}
+                onClick={toggleCompleted}
+              >
+                ✓
               </button>
             </div>
           </div>
+
           <div className="grid">
             {rows.length ? (
-              rows.map((r) => (
-                <article key={r.id} className="card">
-                  <div className="cover">
-                    <span className="pill">{r.cat}</span>
-                    <button
-                      className={`heart${favs.includes(r.id) ? " on" : ""}`}
-                      onClick={() => toggleFav(r.id)}
-                    >
-                      {favs.includes(r.id) ? "♥" : "♡"}
-                    </button>
-                    {r.emoji}
-                  </div>
-                  <div className="body">
-                    <h3>{r.title}</h3>
-                    <div className="meta">
-                      #{r.id} • ⏱ {r.time} • {r.level}
-                    </div>
-                    <p>{r.desc}</p>
-                    <div className="progress">
-                      <span
-                        style={{ width: completed.includes(r.id) ? "100%" : "0%" }}
-                      />
-                    </div>
-                    <div className="actions">
+              visible.map((r) => {
+                const done = completed.includes(r.id);
+                const fav = favs.includes(r.id);
+                return (
+                  <article
+                    key={r.id}
+                    className="card"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setOpenRecipeId(r.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setOpenRecipeId(r.id);
+                      }
+                    }}
+                  >
+                    <div className={`cover ${COVER_CLASS[r.cat] ?? "gloaf"}`}>
+                      {done && <span className="coverDone">✓ Done</span>}
+                      <span className="food">{r.emoji}</span>
                       <button
-                        className="btn primary"
-                        onClick={() => setOpenRecipeId(r.id)}
+                        className={`heartBtn${fav ? " on" : ""}`}
+                        aria-label={
+                          fav ? "Remove from favorites" : "Add to favorites"
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFav(r.id);
+                        }}
                       >
-                        View Recipe
-                      </button>
-                      <button
-                        className="btn light"
-                        onClick={() => addRecipeToGrocery(r)}
-                      >
-                        + Grocery
-                      </button>
-                      <button className="btn light" onClick={() => toggleDone(r.id)}>
-                        {completed.includes(r.id) ? "✓ Done" : "Mark Done"}
+                        {ICONS.heart}
                       </button>
                     </div>
-                  </div>
-                </article>
-              ))
+                    <div className="body">
+                      <h3>{r.title}</h3>
+                      <div className="rate">
+                        <Stars value={Number(ratingFor(r.id))} />
+                        <span className="num">{ratingFor(r.id)}</span>
+                        <small>({reviewsFor(r.id)})</small>
+                      </div>
+                      <div className="tags">
+                        {done && <span className="tag solid">✓ Done</span>}
+                        {[
+                          CAT_TAG[r.cat] ?? "Healthy",
+                          r.level,
+                          "Balanced",
+                        ].map((t) => (
+                          <span key={t} className="tag">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })
             ) : (
               <div className="empty">No recipes match these filters.</div>
+            )}
+            {hasMore && (
+              <button
+                ref={sentinel}
+                className="loadTile"
+                onClick={() => setLimit((l) => l + PAGE)}
+                aria-label={`Load more recipes — showing ${visibleCount} of ${rows.length}`}
+              >
+                <span className="loadPlus" aria-hidden="true">
+                  +
+                </span>
+                <b>Load more</b>
+                <small>
+                  {visibleCount} of {rows.length} recipes shown
+                </small>
+              </button>
             )}
           </div>
         </section>
 
         <section
           id="calculatorView"
-          className={view === "calculator" ? undefined : "hide"}
+          className={view === "calculator" ? undefined : "secHide"}
         >
           <div className="sectionHead">
-            <div>
-              <h2>Built-In Portion Calculator</h2>
-              <p>Scale a recipe to the serving size you want.</p>
-            </div>
+            <h2>Built-In Portion Calculator</h2>
+            <p>Scale a recipe to the serving size you want.</p>
           </div>
-          <div className="calc">
+          <div className="calGrid">
             <div className="calcBox">
               <h3>Select a recipe</h3>
               <select
                 className="field"
                 value={calcRecipeId}
+                aria-label="Recipe to scale"
                 onChange={(e) => setCalcRecipeId(Number(e.target.value))}
               >
                 {recipes.map((r) => (
@@ -322,10 +397,8 @@ export default function CleanBakeApp() {
                   </option>
                 ))}
               </select>
-              <br />
-              <br />
               <label>Original servings</label>
-              <div className="calcResult">{calcRecipe.servings}</div>
+              <div className="calcNum">{calcRecipe.servings}</div>
             </div>
             <div className="calcBox">
               <h3>New serving size</h3>
@@ -336,13 +409,11 @@ export default function CleanBakeApp() {
                 value={newServings}
                 onChange={(e) => setNewServings(e.target.value)}
               />
-              <br />
-              <br />
               <label>Scale factor</label>
-              <div className="calcResult">× {ratio.toFixed(2)}</div>
+              <div className="calcNum">× {ratio.toFixed(2)}</div>
             </div>
           </div>
-          <div className="panel" style={{ marginTop: 15 }}>
+          <div className="panel" style={{ marginTop: 16 }}>
             <h3>Adjusted Ingredients</h3>
             <div className="guideGrid">
               {calcRecipe.ingredients.map((x) => (
@@ -358,85 +429,93 @@ export default function CleanBakeApp() {
           </div>
         </section>
 
-        <section id="groceryView" className={view === "grocery" ? undefined : "hide"}>
+        <section
+          id="groceryView"
+          className={view === "grocery" ? undefined : "secHide"}
+        >
           <div className="sectionHead">
-            <div>
-              <h2>Automatic Grocery List</h2>
-              <p>Add ingredients from any recipe with one click.</p>
-            </div>
+            <h2>Automatic Grocery List</h2>
+            <p>Add ingredients from any recipe with one click.</p>
           </div>
           <div className="panel">
-            <button className="btn light" onClick={clearGrocery}>
-              Clear List
-            </button>
-            <div style={{ marginTop: 10 }}>
-              {grocery.length ? (
-                grocery.map((x, i) => (
-                  <div key={i} className="groceryItem">
-                    <label>
-                      <input type="checkbox" /> {x}
-                    </label>
-                    <button className="btn light" onClick={() => removeGrocery(i)}>
-                      Remove
-                    </button>
-                  </div>
-                ))
-              ) : (
-                <div className="empty">
-                  Your grocery list is empty. Add ingredients from any recipe.
-                </div>
+            <div className="toolRowBetween">
+              <span className="cnt">{grocery.length} items</span>
+              {grocery.length > 0 && (
+                <button className="removeItem" onClick={clearGrocery}>
+                  Clear List
+                </button>
               )}
             </div>
+            {grocery.length ? (
+              grocery.map((x, i) => (
+                <div key={`${x}-${i}`} className="listItem">
+                  <label>
+                    <input type="checkbox" /> {x}
+                  </label>
+                  <button
+                    className="removeItem"
+                    onClick={() => removeGrocery(i)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div className="empty">
+                Your grocery list is empty. Add ingredients from any recipe.
+              </div>
+            )}
           </div>
         </section>
 
-        <section id="bonusesView" className={view === "bonuses" ? undefined : "hide"}>
+        <section
+          id="bonusesView"
+          className={view === "bonuses" ? undefined : "secHide"}
+        >
           <div className="sectionHead">
-            <div>
-              <h2>Your Premium Bonuses</h2>
-              <p>Included with your access.</p>
-            </div>
+            <h2>Your Premium Bonuses</h2>
+            <p>Included with your access.</p>
           </div>
           <div className="bonusGrid">
             <div className="bonus">
-              <div className="book">⭐</div>
+              <div className="bicon">🥗</div>
               <h3>Metabolic Recipes</h3>
               <p>
                 Protein- and fiber-forward meal ideas using measured portions
                 and everyday ingredients.
               </p>
-              <span className="included">INCLUDED</span>
-              <br />
-              <br />
-              <button className="btn primary" onClick={() => setView("metabolic")}>
+              <div className="valueRow">
+                <span className="freePill">INCLUDED</span>
+              </div>
+              <button className="btnGreen" onClick={() => setView("metabolic")}>
                 Open Bonus
               </button>
             </div>
             <div className="bonus">
-              <div className="book">⚠️</div>
+              <div className="bicon">⚠️</div>
               <h3>The Blacklist of Medications and Supplements</h3>
               <p>
                 A safety-awareness guide for medication, supplement, herb and
                 tea combinations to review with your doctor or pharmacist.
               </p>
-              <span className="included">INCLUDED</span>
-              <br />
-              <br />
-              <button className="btn primary" onClick={() => setView("meds")}>
+              <div className="valueRow">
+                <span className="freePill">INCLUDED</span>
+              </div>
+              <button className="btnGreen" onClick={() => setView("meds")}>
                 Open Bonus
               </button>
             </div>
             <div className="bonus">
-              <div className="book">🍵</div>
+              <div className="bicon">🍵</div>
               <h3>The Golden Tea Recipe</h3>
               <p>
                 A simple warm turmeric, cinnamon and ginger tea recipe for your
                 kitchen routine.
               </p>
-              <span className="included">INCLUDED</span>
-              <br />
-              <br />
-              <button className="btn primary" onClick={() => setView("tea")}>
+              <div className="valueRow">
+                <span className="freePill">INCLUDED</span>
+              </div>
+              <button className="btnGreen" onClick={() => setView("tea")}>
                 Open Bonus
               </button>
             </div>
@@ -445,31 +524,40 @@ export default function CleanBakeApp() {
 
         <section
           id="metabolicView"
-          className={view === "metabolic" ? undefined : "hide"}
+          className={view === "metabolic" ? undefined : "secHide"}
         >
           <div className="sectionHead">
-            <div>
-              <h2>Metabolic Recipes</h2>
-              <p>24 bonus protein- and fiber-forward recipe ideas.</p>
-            </div>
+            <h2>Metabolic Recipes</h2>
+            <p>24 bonus protein- and fiber-forward recipe ideas.</p>
           </div>
           <div className="grid">
             {metabolic.map((r, i) => (
-              <article key={i} className="card">
-                <div className="cover">
-                  ⭐
-                  <span className="pill">Bonus Recipe {i + 1}</span>
+              <article
+                key={`${r.title}-${i}`}
+                className="card"
+                role="button"
+                tabIndex={0}
+                onClick={() => setOpenMetabolicIndex(i)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setOpenMetabolicIndex(i);
+                  }
+                }}
+              >
+                <div className="cover soft">
+                  <span className="food">{r.emoji}</span>
                 </div>
                 <div className="body">
                   <h3>{r.title}</h3>
-                  <p>{r.desc}</p>
-                  <div className="actions">
-                    <button
-                      className="btn primary"
-                      onClick={() => setOpenMetabolicIndex(i)}
-                    >
-                      View Recipe
-                    </button>
+                  <div className="rate">
+                    <Stars value={Number(ratingFor(77 + i))} />
+                    <span className="num">{ratingFor(77 + i)}</span>
+                    <small>({reviewsFor(77 + i)})</small>
+                  </div>
+                  <div className="tags">
+                    <span className="tag">High Protein</span>
+                    <span className="tag">Bonus Recipe {i + 1}</span>
                   </div>
                 </div>
               </article>
@@ -477,22 +565,24 @@ export default function CleanBakeApp() {
           </div>
         </section>
 
-        <section id="medsView" className={view === "meds" ? undefined : "hide"}>
+        <section
+          id="medsView"
+          className={view === "meds" ? undefined : "secHide"}
+        >
           <div className="sectionHead">
-            <div>
-              <h2>The Blacklist of Medications and Supplements</h2>
-              <p>Safety-awareness guide — not a stop-medication list.</p>
-            </div>
+            <h2>The Blacklist of Medications and Supplements</h2>
+            <p>Safety-awareness guide — not a stop-medication list.</p>
           </div>
           <div className="panel">
-            <div className="note">
+            <div className="note" style={{ marginBottom: 16 }}>
               <b>
                 Important: Never stop, reduce, replace, or change a prescribed
-                medicine because of this guide. Review medication, supplement,
-                herb and tea combinations with your doctor or pharmacist.
-              </b>
+                medicine because of this guide.
+              </b>{" "}
+              Review medication, supplement, herb and tea combinations with
+              your doctor or pharmacist.
             </div>
-            <div className="guideGrid" style={{ marginTop: 15 }}>
+            <div className="guideGrid">
               {medGuide.map((x) => (
                 <div key={x[0]} className="guide">
                   <b>{x[0]}</b>
@@ -503,42 +593,47 @@ export default function CleanBakeApp() {
           </div>
         </section>
 
-        <section id="teaView" className={view === "tea" ? undefined : "hide"}>
+        <section id="teaView" className={view === "tea" ? undefined : "secHide"}>
           <div className="sectionHead">
-            <div>
-              <h2>The Golden Tea Recipe</h2>
-              <p>Bonus kitchen recipe.</p>
-            </div>
+            <h2>The Golden Tea Recipe</h2>
+            <p>Bonus kitchen recipe.</p>
           </div>
           <div className="panel">
-            <div className="cols">
-              <div>
-                <h3>Ingredients</h3>
-                <ul>
-                  {goldenTea.ingredients.map((x) => (
-                    <li key={x}>{x}</li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h3>Method</h3>
-                <ol>
-                  {goldenTea.steps.map((x, i) => (
-                    <li key={i}>{x}</li>
-                  ))}
-                </ol>
-                <div className="note">{goldenTea.note}</div>
+            <div className="msec">
+              <h3>
+                Ingredients
+                <span className="cnt">{goldenTea.ingredients.length}</span>
+              </h3>
+              <ul className="ings">
+                {goldenTea.ingredients.map((x) => (
+                  <li key={x}>{x}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="msec" style={{ marginBottom: 0 }}>
+              <h3>
+                Method
+                <span className="cnt">{goldenTea.steps.length} steps</span>
+              </h3>
+              <ol className="steps">
+                {goldenTea.steps.map((x, i) => (
+                  <li key={i}>{x}</li>
+                ))}
+              </ol>
+              <div className="note" style={{ marginTop: 14, marginBottom: 0 }}>
+                <b>Tip:</b> {goldenTea.note}
               </div>
             </div>
           </div>
         </section>
 
-        <section id="toolsView" className={view === "tools" ? undefined : "hide"}>
+        <section
+          id="toolsView"
+          className={view === "tools" ? undefined : "secHide"}
+        >
           <div className="sectionHead">
-            <div>
-              <h2>Pantry &amp; Grocery Starter</h2>
-              <p>Quick reference for common ingredients.</p>
-            </div>
+            <h2>Pantry &amp; Grocery Starter</h2>
+            <p>Quick reference for common ingredients.</p>
           </div>
           <div className="toolGrid">
             {Object.entries(shopping).map(([k, v]) => (
@@ -555,6 +650,55 @@ export default function CleanBakeApp() {
         </section>
       </main>
 
+      {drawer && (
+        <div
+          className="drawer open"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setDrawer(false);
+          }}
+        >
+          <div className="drawerBox">
+            <div className="drawerHead">
+              <Image
+                className="drawerLogo"
+                src="/logo-mobile.png"
+                alt="Clean Bake App"
+                width={1254}
+                height={1254}
+              />
+              <button
+                className="close"
+                aria-label="Close menu"
+                onClick={() => setDrawer(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="drawerLabel">Switch app</div>
+            <AppSwitcher />
+            <div className="drawerLabel">My library</div>
+            <button
+              className={`drawerLink${favoritesOnly ? " on" : ""}`}
+              onClick={() => {
+                toggleFavorites();
+                setDrawer(false);
+              }}
+            >
+              ♥ Favorites
+            </button>
+            <button
+              className={`drawerLink${completedOnly ? " on" : ""}`}
+              onClick={() => {
+                toggleCompleted();
+                setDrawer(false);
+              }}
+            >
+              ✓ Completed
+            </button>
+          </div>
+        </div>
+      )}
+
       {openRecipe && (
         <div
           className="modal open"
@@ -566,51 +710,89 @@ export default function CleanBakeApp() {
             <button className="close" onClick={() => setOpenRecipeId(null)}>
               ×
             </button>
-            <div>
-              <span className="badge">
-                {openRecipe.cat} • Recipe #{openRecipe.id}
-              </span>
-              <h2>
-                {openRecipe.emoji} {openRecipe.title}
-              </h2>
-              <p>{openRecipe.desc}</p>
-              <div className="cols">
+            <div className="mhead">
+              <div
+                className={`mcover ${COVER_CLASS[openRecipe.cat] ?? "gloaf"}`}
+              >
+                <span className="food">{openRecipe.emoji}</span>
+              </div>
+              <div className="mheadInfo">
+                <span className="badge">
+                  {openRecipe.cat} • Recipe #{openRecipe.id}
+                </span>
+                <h2>{openRecipe.title}</h2>
+                <p>{openRecipe.desc}</p>
+              </div>
+            </div>
+            <div className="modalBody">
+              <div className="recipeSummary">
                 <div>
-                  <h3>Ingredients — Exact Amounts</h3>
-                  <ul>
-                    {openRecipe.ingredients.map((x) => (
-                      <li key={x}>{x}</li>
-                    ))}
-                  </ul>
+                  <b>👥 Servings</b>
+                  <small>{openRecipe.servings}</small>
                 </div>
                 <div>
-                  <h3>Method</h3>
-                  <ol>
-                    {openRecipe.steps.map((x, i) => (
-                      <li key={i}>{x}</li>
-                    ))}
-                  </ol>
-                  <div className="note">
-                    <b>Note:</b> {openRecipe.note}
-                  </div>
+                  <b>⏱ Total Time</b>
+                  <small>{openRecipe.time}</small>
+                </div>
+                <div>
+                  <b>🧾 Ingredients</b>
+                  <small>{openRecipe.ingredients.length}</small>
                 </div>
               </div>
-              <div className="actions">
-                <button
-                  className="btn gold"
-                  onClick={() => addRecipeToGrocery(openRecipe)}
-                >
-                  Add Ingredients to Grocery List
-                </button>
-                <button
-                  className="btn primary"
-                  onClick={() => toggleDone(openRecipe.id)}
-                >
-                  {completed.includes(openRecipe.id)
-                    ? "✓ Completed — Undo"
-                    : "Mark Complete"}
-                </button>
+              <div className="exactNote">
+                <b>Before you start:</b> Measure each ingredient exactly as
+                listed below, then use the Portion Calculator if you need a
+                different number of servings.
               </div>
+              <div className="msec">
+                <h3>
+                  Ingredients
+                  <span className="cnt">{openRecipe.ingredients.length}</span>
+                </h3>
+                <ul className="ings">
+                  {openRecipe.ingredients.map((x) => (
+                    <li key={x}>{x}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="msec" style={{ marginBottom: 14 }}>
+                <h3>
+                  Method
+                  <span className="cnt">{openRecipe.steps.length} steps</span>
+                </h3>
+                <ol className="steps">
+                  {openRecipe.steps.map((x, i) => (
+                    <li key={i}>{x}</li>
+                  ))}
+                </ol>
+                <div className="note" style={{ marginTop: 14, marginBottom: 0 }}>
+                  <b>Note:</b> {openRecipe.note}
+                </div>
+              </div>
+            </div>
+            <div className="modalFoot">
+              <button
+                className={`btnGreen light favBtn${favs.includes(openRecipe.id) ? " on" : ""}`}
+                onClick={() => toggleFav(openRecipe.id)}
+              >
+                {favs.includes(openRecipe.id)
+                  ? "♥ Favorited"
+                  : "♡ Favorite"}
+              </button>
+              <button
+                className="btnGreen light"
+                onClick={() => addRecipeToGrocery(openRecipe.ingredients)}
+              >
+                🛒 Grocery
+              </button>
+              <button
+                className="btnGreen doneBtn"
+                onClick={() => toggleDone(openRecipe.id)}
+              >
+                {completed.includes(openRecipe.id)
+                  ? "✓ Completed — Undo"
+                  : "Mark Complete"}
+              </button>
             </div>
           </div>
         </div>
@@ -624,43 +806,77 @@ export default function CleanBakeApp() {
           }}
         >
           <div className="box">
-            <button className="close" onClick={() => setOpenMetabolicIndex(null)}>
+            <button
+              className="close"
+              onClick={() => setOpenMetabolicIndex(null)}
+            >
               ×
             </button>
-            <div>
-              <span className="badge">Metabolic Recipes • Bonus</span>
-              <h2>
-                ⭐ {openMetabolic.title}
-              </h2>
-              <p>{openMetabolic.desc}</p>
-              <div className="cols">
+            <div className="mhead">
+              <div className="mcover soft">
+                <span className="food">{openMetabolic.emoji}</span>
+              </div>
+              <div className="mheadInfo">
+                <span className="badge">Metabolic Recipes • Bonus</span>
+                <h2>{openMetabolic.title}</h2>
+                <p>{openMetabolic.desc}</p>
+              </div>
+            </div>
+            <div className="modalBody">
+              <div className="recipeSummary">
                 <div>
-                  <h3>Ingredients</h3>
-                  <ul>
-                    {openMetabolic.ingredients.map((x) => (
-                      <li key={x}>{x}</li>
-                    ))}
-                  </ul>
+                  <b>👥 Servings</b>
+                  <small>{openMetabolic.servings}</small>
                 </div>
                 <div>
-                  <h3>Method</h3>
-                  <ol>
-                    {openMetabolic.steps.map((x, i) => (
-                      <li key={i}>{x}</li>
-                    ))}
-                  </ol>
+                  <b>🧾 Ingredients</b>
+                  <small>{openMetabolic.ingredients.length}</small>
                 </div>
+                <div>
+                  <b>⭐ Bonus</b>
+                  <small>Metabolic recipe</small>
+                </div>
+              </div>
+              <div className="msec">
+                <h3>
+                  Ingredients
+                  <span className="cnt">
+                    {openMetabolic.ingredients.length}
+                  </span>
+                </h3>
+                <ul className="ings">
+                  {openMetabolic.ingredients.map((x) => (
+                    <li key={x}>{x}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="msec" style={{ marginBottom: 0 }}>
+                <h3>
+                  Method
+                  <span className="cnt">{openMetabolic.steps.length} steps</span>
+                </h3>
+                <ol className="steps">
+                  {openMetabolic.steps.map((x, i) => (
+                    <li key={i}>{x}</li>
+                  ))}
+                </ol>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      <footer>
-        For general recipe and educational information only. Not medical advice.
-        If you manage diabetes or another medical condition, use carbohydrate
-        portions and ingredients that fit your individual care plan, and do not
-        change medications without professional guidance.
+      <footer className="foot">
+        <div className="footApps">
+          <span>Explore more apps</span>
+          <AppSwitcher />
+        </div>
+        <p>
+          For general recipe and educational information only. Not medical
+          advice. If you manage diabetes or another medical condition, use
+          carbohydrate portions and ingredients that fit your individual care
+          plan, and do not change medications without professional guidance.
+        </p>
       </footer>
     </>
   );

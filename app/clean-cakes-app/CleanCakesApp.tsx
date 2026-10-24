@@ -15,15 +15,6 @@ import {
 
 type View = "recipes" | "bonuses" | "sweetener" | "frosting" | "fix" | "tools";
 
-const NAV: { id: View; label: string }[] = [
-  { id: "recipes", label: "Recipes" },
-  { id: "bonuses", label: "Bonuses" },
-  { id: "sweetener", label: "Sweetener" },
-  { id: "frosting", label: "Frosting Book" },
-  { id: "fix", label: "First Bite Fix" },
-  { id: "tools", label: "Tools" },
-];
-
 const CATEGORIES = [
   "Cakes",
   "Cupcakes",
@@ -219,8 +210,7 @@ export default function CleanCakesApp() {
   const hasMore = visibleCount < rows.length;
 
   const filterKey = `${search}|${category}|${level}|${favoritesOnly}|${completedOnly}|${view}`;
-  const [prevKey, setPrevKey] = useState(filterKey);
-  if (prevKey !== filterKey) {
+  const [prevKey, setPrevKey] = useState(filterKey);  if (prevKey !== filterKey) {
     setPrevKey(filterKey);
     setLimit(PAGE);
   }
@@ -292,12 +282,6 @@ export default function CleanCakesApp() {
     setSearch("");
     resetFilterToggles();
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function openView(v: View) {
-    setView(v);
-    setDrawer(false);
-    window.scrollTo({ top: 0 });
   }
 
   return (
@@ -720,15 +704,6 @@ export default function CleanCakesApp() {
                 ×
               </button>
             </div>
-            {NAV.map((n) => (
-              <button
-                key={n.id}
-                className={`drawerLink${view === n.id ? " on" : ""}`}
-                onClick={() => openView(n.id)}
-              >
-                {n.label}
-              </button>
-            ))}
             <div className="drawerLabel">Switch app</div>
             <AppSwitcher />
             <div className="drawerLabel">My library</div>
