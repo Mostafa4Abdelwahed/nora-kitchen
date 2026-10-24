@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const LINKS: { href: string; label: string }[] = [
-  { href: "/clean-cakes-app", label: "🍰 Clean Cakes" },
-  { href: "/clean-bake-app", label: "🥗 Clean Bake" },
-  { href: "/clean-kitchen-ultimate", label: "🍽️ Clean Kitchen" },
+  { href: "/clean-cakes-app", label: "Clean Cakes" },
+  { href: "/clean-bake-app", label: "Clean Bake" },
+  { href: "/clean-kitchen-ultimate", label: "Clean Kitchen" },
 ];
 
 export default function AppSwitcher() {

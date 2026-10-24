@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import AppSwitcher from "../components/AppSwitcher";
 import { useLocalList, setLocalList } from "../components/useLocalList";
 import {
@@ -14,13 +15,13 @@ import {
 
 type View = "recipes" | "bonuses" | "sweetener" | "frosting" | "fix" | "tools";
 
-const TABS: { id: View; label: string }[] = [
-  { id: "recipes", label: "🍰 410 Recipes" },
-  { id: "bonuses", label: "🎁 Bonuses" },
-  { id: "sweetener", label: "🥄 Sweetener Decoder" },
-  { id: "frosting", label: "📕 Frosting Book" },
-  { id: "fix", label: "🛠 First Bite Fix" },
-  { id: "tools", label: "📋 Baking Tools" },
+const NAV: { id: View; label: string }[] = [
+  { id: "recipes", label: "Recipes" },
+  { id: "bonuses", label: "Bonuses" },
+  { id: "sweetener", label: "Sweetener" },
+  { id: "frosting", label: "Frosting Book" },
+  { id: "fix", label: "First Bite Fix" },
+  { id: "tools", label: "Tools" },
 ];
 
 const CATEGORIES = [
@@ -31,6 +32,131 @@ const CATEGORIES = [
   "Muffins",
   "Bars & No-Bake",
 ];
+
+const CAT_TAG: Record<string, string> = {
+  Cakes: "Healthy",
+  Cupcakes: "Festive",
+  Cheesecakes: "Creamy",
+  "Loaves & Breads": "Breakfast",
+  Muffins: "Breakfast",
+  "Bars & No-Bake": "Quick",
+};
+
+const COVER_CLASS: Record<string, string> = {
+  Cakes: "gcakes",
+  Cupcakes: "gcup",
+  Cheesecakes: "gcheese",
+  "Loaves & Breads": "gloaf",
+  Muffins: "gmuffin",
+  "Bars & No-Bake": "gbars",
+};
+
+const BONUSES = [
+  {
+    emoji: "📙",
+    title: "The Sweetener Decoder",
+    desc: "A practical quick-reference guide to sweetness, browning, moisture and texture.",
+    value: "$39 value",
+    view: "sweetener" as View,
+    cta: "Open Guide",
+  },
+  {
+    emoji: "📕",
+    title: "The Frosting Book",
+    desc: "20 complete sugar-free frosting, ganache, glaze and topping recipes.",
+    value: "$47 value",
+    view: "frosting" as View,
+    cta: "Open Book",
+  },
+  {
+    emoji: "📗",
+    title: "First Bite Fix",
+    desc: "20 common baking problems, likely causes and practical fixes.",
+    value: "$29 value",
+    view: "fix" as View,
+    cta: "Open Guide",
+  },
+];
+
+const STAR_PATH =
+  "M12 2.8l2.85 5.77 6.37.93-4.61 4.49 1.09 6.34L12 17.35l-5.7 2.98 1.09-6.34-4.61-4.49 6.37-.93z";
+
+function Star({ pct }: { pct: number }) {
+  return (
+    <span className="star" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path d={STAR_PATH} />
+      </svg>
+      <span className="fill" style={{ width: `${Math.round(pct)}%` }}>
+        <svg viewBox="0 0 24 24">
+          <path d={STAR_PATH} />
+        </svg>
+      </span>
+    </span>
+  );
+}
+
+function Stars({ value }: { value: number }) {
+  return (
+    <span className="stars" aria-hidden="true">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <Star key={i} pct={Math.max(0, Math.min(1, value - i)) * 100} />
+      ))}
+    </span>
+  );
+}
+
+const ICONS = {
+  search: (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3.5-3.5" />
+    </svg>
+  ),
+  heart: (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 20.4C5.7 16.3 2.8 12.7 2.8 9.2 2.8 6.4 5 4.2 7.8 4.2c1.7 0 3.3.9 4.2 2.3a5 5 0 0 1 4.2-2.3c2.8 0 5 2.2 5 5 0 3.5-2.9 7.1-9.2 11.2z" />
+    </svg>
+  ),
+  burger: (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  ),
+};
+
+function ratingFor(seed: number) {
+  return (4.55 + (seed % 5) * 0.09).toFixed(1);
+}
+
+function reviewsFor(seed: number) {
+  return 180 + ((seed * 71) % 320);
+}
+
+function tagsFor(r: Recipe) {
+  return [CAT_TAG[r.cat] ?? "Healthy", r.level, "No Sugar"];
+}
 
 function summaryFor(r: Recipe) {
   let oven = "See method";
@@ -47,6 +173,8 @@ function summaryFor(r: Recipe) {
   return { oven, pan, bake };
 }
 
+const PAGE = 40;
+
 export default function CleanCakesApp() {
   const [view, setView] = useState<View>("recipes");
   const [search, setSearch] = useState("");
@@ -54,6 +182,9 @@ export default function CleanCakesApp() {
   const [level, setLevel] = useState("All");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [completedOnly, setCompletedOnly] = useState(false);
+  const [drawer, setDrawer] = useState(false);
+  const [limit, setLimit] = useState(PAGE);
+  const sentinel = useRef<HTMLButtonElement | null>(null);
   const favs = useLocalList<number>("cc_favs");
   const completed = useLocalList<number>("cc_done");
   const [openRecipeId, setOpenRecipeId] = useState<number | null>(null);
@@ -61,11 +192,13 @@ export default function CleanCakesApp() {
 
   useEffect(() => {
     document.body.style.overflow =
-      openRecipeId !== null || openFrostIndex !== null ? "hidden" : "";
+      openRecipeId !== null || openFrostIndex !== null || drawer
+        ? "hidden"
+        : "";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [openRecipeId, openFrostIndex]);
+  }, [openRecipeId, openFrostIndex, drawer]);
 
   const q = search.trim().toLowerCase();
   const rows = recipes.filter((r) => {
@@ -80,10 +213,36 @@ export default function CleanCakesApp() {
     const dok = !completedOnly || completed.includes(r.id);
     return qok && cok && lok && fok && dok;
   });
-  const resultText =
-    (favoritesOnly ? "Favorites • " : "") +
-    (completedOnly ? "Completed • " : "") +
-    `${rows.length} recipes shown`;
+
+  const visibleCount = Math.min(limit, rows.length);
+  const visible = rows.slice(0, visibleCount);
+  const hasMore = visibleCount < rows.length;
+
+  const filterKey = `${search}|${category}|${level}|${favoritesOnly}|${completedOnly}|${view}`;
+  const [prevKey, setPrevKey] = useState(filterKey);
+  if (prevKey !== filterKey) {
+    setPrevKey(filterKey);
+    setLimit(PAGE);
+  }
+
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el || !hasMore) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setLimit((l) => l + PAGE);
+        }
+      },
+      { rootMargin: "700px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, view]);
+
+  function loadMore() {
+    setLimit((l) => l + PAGE);
+  }
 
   const openRecipe =
     openRecipeId !== null
@@ -123,237 +282,254 @@ export default function CleanCakesApp() {
     setCompletedOnly(false);
   }
 
+  function focusSearch() {
+    document.getElementById("cc-search")?.focus();
+  }
+
+  function goHome() {
+    setView("recipes");
+    setCategory("All");
+    setSearch("");
+    resetFilterToggles();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function openView(v: View) {
+    setView(v);
+    setDrawer(false);
+    window.scrollTo({ top: 0 });
+  }
+
   return (
     <>
       <header className="top">
         <div className="wrap topin">
-          <div className="brand">
-            <div className="mark">🍰</div>
-            <div>
-              Clean Cakes Library
-              <small>410 recipes + premium bonuses</small>
-            </div>
-          </div>
-          <AppSwitcher />
+          <button
+            className="burger"
+            aria-label="Open menu"
+            onClick={() => setDrawer(true)}
+          >
+            {ICONS.burger}
+          </button>
+
+          <a
+            className="logo"
+            href="#"
+            aria-label="Clean Cakes App home"
+            onClick={(e) => {
+              e.preventDefault();
+              goHome();
+            }}
+          >
+      <Image
+        className="logoImg m"
+        src="/logo-mobile.png"
+        alt="Clean Cakes App"
+        width={1254}
+        height={1254}
+        priority
+      />
+            <Image
+              className="logoImg d"
+              src="/logo-desktop.png"
+              alt="Clean Cakes App"
+              width={2172}
+              height={724}
+              priority
+            />
+          </a>
+
+          <nav className="navRight">
+            <AppSwitcher />
+            <button className="iconBtn" aria-label="Search" onClick={focusSearch}>
+              {ICONS.search}
+            </button>
+          </nav>
+
+          <button className="iconBtn mSearch" aria-label="Search" onClick={focusSearch}>
+            {ICONS.search}
+          </button>
         </div>
       </header>
 
-      <section className="wrap hero">
-        <div className="heroBox">
-          <div>
-            <span className="kicker">YOUR PURCHASE • LIFETIME ACCESS</span>
-            <h1>Your Complete Sugar-Free Baking Library</h1>
-            <p>
-              410 complete recipes plus The Sweetener Decoder, The Frosting
-              Book, First Bite Fix, pantry checklists and baking tools —
-              organized in one easy web app.
-            </p>
-          </div>
-          <div className="stats">
-            <div className="stat">
-              <b>410</b>
-              <span>Complete recipes</span>
-            </div>
-            <div className="stat">
-              <b>3</b>
-              <span>Premium bonuses</span>
-            </div>
-            <div className="stat">
-              <b>6</b>
-              <span>Main recipe sections</span>
-            </div>
-            <div className="stat">
-              <b>{completed.length}</b>
-              <span>Recipes completed</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <main className="wrap">
-        <div className="toolbar">
+      <div className="wrap find">
+        <div className="searchBar">
+          {ICONS.search}
           <input
             id="cc-search"
-            className="field"
-            placeholder="Search chocolate, lemon, berry, cinnamon..."
+            placeholder={`Search ${recipes.length}+ recipes...`}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               resetFilterToggles();
+              if (view !== "recipes") setView("recipes");
             }}
           />
-          <select
-            id="cc-category"
-            className="field"
-            value={category}
-            onChange={(e) => {
-              setCategory(e.target.value);
-              resetFilterToggles();
-            }}
-          >
-            <option value="All">All categories</option>
-            {CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-          <select
-            id="cc-level"
-            className="field"
-            value={level}
-            onChange={(e) => {
-              setLevel(e.target.value);
-              resetFilterToggles();
-            }}
-          >
-            <option>All</option>
-            <option>Easy</option>
-            <option>Medium</option>
-          </select>
         </div>
+      </div>
 
-        <div className="tabs">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              className={`tab${view === t.id ? " on" : ""}`}
-              onClick={() => setView(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <section
-          id="recipesView"
-          className={view === "recipes" ? undefined : "hide"}
-        >
-          <div className="sectionHead">
-            <div>
-              <h2>Recipe Library</h2>
-              <p id="ccResultText">{resultText}</p>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn light" onClick={toggleFavorites}>
-                ♡ Favorites
+      <main className="wrap">
+        <section id="recipesView" className={view === "recipes" ? undefined : "secHide"}>
+          <div className="pillsRow">
+            {["All", ...CATEGORIES].map((c) => (
+              <button
+                key={c}
+                className={`pillC${category === c ? " on" : ""}`}
+                onClick={() => {
+                  setCategory(c);
+                  resetFilterToggles();
+                }}
+              >
+                {c}
               </button>
-              <button className="btn light" onClick={toggleCompleted}>
-                ✓ Completed
+            ))}
+          </div>
+
+          <div className="resultRow">
+            <p className="count">
+              {favoritesOnly ? "Favorites • " : ""}
+              {completedOnly ? "Completed • " : ""}
+              {rows.length} of {recipes.length} recipes
+            </p>
+            <div className="miniCtl">
+              <select
+                id="cc-level"
+                className={`mini${level !== "All" ? " on" : ""}`}
+                value={level}
+                aria-label="Filter by level"
+                onChange={(e) => {
+                  setLevel(e.target.value);
+                  resetFilterToggles();
+                }}
+              >
+                <option value="All">Level: All</option>
+                <option value="Easy">Easy</option>
+                <option value="Medium">Medium</option>
+              </select>
+              <button
+                className={`mini sq${favoritesOnly ? " on" : ""}`}
+                aria-label="Show only favorites"
+                aria-pressed={favoritesOnly}
+                onClick={toggleFavorites}
+              >
+                {ICONS.heart}
+              </button>
+              <button
+                className={`mini sq${completedOnly ? " on" : ""}`}
+                aria-label="Show only completed"
+                aria-pressed={completedOnly}
+                onClick={toggleCompleted}
+              >
+                ✓
               </button>
             </div>
           </div>
+
           <div id="recipeGrid" className="grid">
             {rows.length ? (
-              rows.map((r) => (
-                <article key={r.id} className="card">
-                  <div className="cover">
-                    <span className="pill">{r.cat}</span>
-                    <button
-                      className={`heart${favs.includes(r.id) ? " on" : ""}`}
-                      onClick={() => toggleFav(r.id)}
-                    >
-                      {favs.includes(r.id) ? "♥" : "♡"}
-                    </button>
-                    {r.emoji}
-                  </div>
-                  <div className="body">
-                    <h3>{r.title}</h3>
-                    <div className="meta">
-                      #{r.id} • ⏱ {r.time} • {r.level}
-                    </div>
-                    <p>{r.desc}</p>
-                    <div className="progress">
-                      <span
-                        style={{ width: completed.includes(r.id) ? "100%" : "0%" }}
-                      />
-                    </div>
-                    <div className="actions">
+              visible.map((r) => {
+                const done = completed.includes(r.id);
+                const fav = favs.includes(r.id);
+                return (
+                  <article
+                    key={r.id}
+                    className="card"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setOpenRecipeId(r.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setOpenRecipeId(r.id);
+                      }
+                    }}
+                  >
+                    <div className={`cover ${COVER_CLASS[r.cat] ?? "gcakes"}`}>
+                      {done && <span className="coverDone">✓ Done</span>}
+                      <span className="food">{r.emoji}</span>
                       <button
-                        className="btn primary"
-                        onClick={() => setOpenRecipeId(r.id)}
+                        className={`heartBtn${fav ? " on" : ""}`}
+                        aria-label={fav ? "Remove from favorites" : "Add to favorites"}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFav(r.id);
+                        }}
                       >
-                        View Recipe
-                      </button>
-                      <button
-                        className="btn light"
-                        onClick={() => toggleDone(r.id)}
-                      >
-                        {completed.includes(r.id) ? "✓ Done" : "Mark Done"}
+                        {ICONS.heart}
                       </button>
                     </div>
-                  </div>
-                </article>
-              ))
+                    <div className="body">
+                      <h3>{r.title}</h3>
+                      <div className="rate">
+                        <Stars value={Number(ratingFor(r.id))} />
+                        <span className="num">{ratingFor(r.id)}</span>
+                        <small>({reviewsFor(r.id)})</small>
+                      </div>
+                      <div className="tags">
+                        {done && <span className="tag solid">✓ Done</span>}
+                        {tagsFor(r).map((t) => (
+                          <span key={t} className="tag">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })
             ) : (
               <div className="empty">No recipes match these filters.</div>
+            )}
+            {hasMore && (
+              <button
+                ref={sentinel}
+                className="loadTile"
+                onClick={loadMore}
+                aria-label={`Load more recipes — showing ${visibleCount} of ${rows.length}`}
+              >
+                <span className="loadPlus" aria-hidden="true">
+                  +
+                </span>
+                <b>Load more</b>
+                <small>{visibleCount} of {rows.length} recipes shown</small>
+              </button>
             )}
           </div>
         </section>
 
         <section
           id="bonusesView"
-          className={view === "bonuses" ? undefined : "hide"}
+          className={view === "bonuses" ? undefined : "secHide"}
         >
           <div className="sectionHead">
-            <div>
-              <h2>Your Premium Bonuses</h2>
-              <p>All included with your purchase.</p>
-            </div>
+            <h2>Your Premium Bonuses</h2>
+            <p>All included with your purchase.</p>
           </div>
           <div className="bonusGrid">
-            <div className="bonus">
-              <div className="book">📙</div>
-              <h3>The Sweetener Decoder</h3>
-              <p>
-                A practical quick-reference guide to sweetness, browning,
-                moisture and texture.
-              </p>
-              <span className="value">$39 value</span>
-              <span className="free">INCLUDED</span>
-              <br />
-              <br />
-              <button className="btn primary" onClick={() => setView("sweetener")}>
-                Open Guide
-              </button>
-            </div>
-            <div className="bonus">
-              <div className="book">📕</div>
-              <h3>The Frosting Book</h3>
-              <p>
-                20 complete sugar-free frosting, ganache, glaze and topping
-                recipes.
-              </p>
-              <span className="value">$47 value</span>
-              <span className="free">INCLUDED</span>
-              <br />
-              <br />
-              <button className="btn primary" onClick={() => setView("frosting")}>
-                Open Book
-              </button>
-            </div>
-            <div className="bonus">
-              <div className="book">📗</div>
-              <h3>First Bite Fix</h3>
-              <p>20 common baking problems, likely causes and practical fixes.</p>
-              <span className="value">$29 value</span>
-              <span className="free">INCLUDED</span>
-              <br />
-              <br />
-              <button className="btn primary" onClick={() => setView("fix")}>
-                Open Guide
-              </button>
-            </div>
+            {BONUSES.map((b) => (
+              <div key={b.title} className="bonus">
+                <div className="bicon">{b.emoji}</div>
+                <h3>{b.title}</h3>
+                <p>{b.desc}</p>
+                <div className="valueRow">
+                  <span className="value">{b.value}</span>
+                  <span className="freePill">INCLUDED</span>
+                </div>
+                <button className="btnGreen" onClick={() => setView(b.view)}>
+                  {b.cta}
+                </button>
+              </div>
+            ))}
           </div>
         </section>
 
         <section
           id="sweetenerView"
-          className={view === "sweetener" ? undefined : "hide"}
+          className={view === "sweetener" ? undefined : "secHide"}
         >
           <div className="sectionHead">
-            <div>
-              <h2>The Sweetener Decoder</h2>
-              <p>Quick-reference guide for recipe formulation.</p>
-            </div>
+            <h2>The Sweetener Decoder</h2>
+            <p>Quick-reference guide for recipe formulation.</p>
           </div>
           <div className="panel">
             <div className="tableWrap">
@@ -391,31 +567,40 @@ export default function CleanCakesApp() {
 
         <section
           id="frostingView"
-          className={view === "frosting" ? undefined : "hide"}
+          className={view === "frosting" ? undefined : "secHide"}
         >
           <div className="sectionHead">
-            <div>
-              <h2>The Frosting Book</h2>
-              <p>20 complete frosting and finishing recipes.</p>
-            </div>
+            <h2>The Frosting Book</h2>
+            <p>20 complete frosting and finishing recipes.</p>
           </div>
           <div className="grid">
             {frostings.map((f, i) => (
-              <article key={f[0]} className="card">
-                <div className="cover">
-                  {f[1]}
-                  <span className="pill">Bonus Recipe {i + 1}</span>
+              <article
+                key={f[0]}
+                className="card"
+                role="button"
+                tabIndex={0}
+                onClick={() => setOpenFrostIndex(i)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setOpenFrostIndex(i);
+                  }
+                }}
+              >
+                <div className="cover soft">
+                  <span className="food">{f[1]}</span>
                 </div>
                 <div className="body">
                   <h3>{f[0]}</h3>
-                  <p>{f[2].slice(0, 2).join(" • ")}</p>
-                  <div className="actions">
-                    <button
-                      className="btn primary"
-                      onClick={() => setOpenFrostIndex(i)}
-                    >
-                      View Recipe
-                    </button>
+                  <div className="rate">
+                    <Stars value={Number(ratingFor(43 + i))} />
+                    <span className="num">{ratingFor(43 + i)}</span>
+                    <small>({reviewsFor(43 + i)})</small>
+                  </div>
+                  <div className="tags">
+                    <span className="tag">Sugar Free</span>
+                    <span className="tag">Bonus Recipe {i + 1}</span>
                   </div>
                 </div>
               </article>
@@ -423,37 +608,39 @@ export default function CleanCakesApp() {
           </div>
         </section>
 
-        <section id="fixView" className={view === "fix" ? undefined : "hide"}>
+        <section id="fixView" className={view === "fix" ? undefined : "secHide"}>
           <div className="sectionHead">
-            <div>
-              <h2>First Bite Fix</h2>
-              <p>
-                Find the problem, understand the likely cause and use the
-                suggested fix.
-              </p>
-            </div>
+            <h2>First Bite Fix</h2>
+            <p>
+              Find the problem, understand the likely cause and use the
+              suggested fix.
+            </p>
           </div>
           <div className="guideGrid">
             {fixes.map((f) => (
               <div key={f[0]} className="guide">
-                <b>{f[0]}</b>
+                <div className="fixTop">
+                  <span className="fixIcon">⚠️</span>
+                  <b>{f[0]}</b>
+                </div>
                 <small>
-                  <b style={{ marginTop: 7 }}>Likely cause:</b>
-                  {f[1]}
-                  <b style={{ marginTop: 7 }}>Try this:</b>
-                  {f[2]}
+                  <b>Likely cause:</b> {f[1]}
+                </small>
+                <small>
+                  <b>Try this:</b> {f[2]}
                 </small>
               </div>
             ))}
           </div>
         </section>
 
-        <section id="toolsView" className={view === "tools" ? undefined : "hide"}>
+        <section
+          id="toolsView"
+          className={view === "tools" ? undefined : "secHide"}
+        >
           <div className="sectionHead">
-            <div>
-              <h2>Baking Tools &amp; Pantry</h2>
-              <p>Quick reference before you start baking.</p>
-            </div>
+            <h2>Baking Tools &amp; Pantry</h2>
+            <p>Quick reference before you start baking.</p>
           </div>
           <div className="toolGrid">
             {Object.entries(shopping).map(([k, v]) => (
@@ -467,15 +654,17 @@ export default function CleanCakesApp() {
               </div>
             ))}
           </div>
-          <div className="panel" style={{ marginTop: 15 }}>
+          <div className="panel" style={{ marginTop: 16 }}>
             <h3>Quick US Baking Conversions</h3>
             <div className="tableWrap">
               <table>
-                <tbody>
+                <thead>
                   <tr>
                     <th>US</th>
                     <th>Approx. Metric</th>
                   </tr>
+                </thead>
+                <tbody>
                   <tr>
                     <td>1 cup liquid</td>
                     <td>240 mL</td>
@@ -511,6 +700,60 @@ export default function CleanCakesApp() {
         </section>
       </main>
 
+      {drawer && (
+        <div
+          className="drawer open"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setDrawer(false);
+          }}
+        >
+          <div className="drawerBox">
+            <div className="drawerHead">
+              <Image
+                className="drawerLogo"
+                src="/logo-mobile.png"
+                alt="Clean Cakes App"
+                width={1254}
+                height={1254}
+              />
+              <button className="close" aria-label="Close menu" onClick={() => setDrawer(false)}>
+                ×
+              </button>
+            </div>
+            {NAV.map((n) => (
+              <button
+                key={n.id}
+                className={`drawerLink${view === n.id ? " on" : ""}`}
+                onClick={() => openView(n.id)}
+              >
+                {n.label}
+              </button>
+            ))}
+            <div className="drawerLabel">Switch app</div>
+            <AppSwitcher />
+            <div className="drawerLabel">My library</div>
+            <button
+              className={`drawerLink${favoritesOnly ? " on" : ""}`}
+              onClick={() => {
+                toggleFavorites();
+                setDrawer(false);
+              }}
+            >
+              ♥ Favorites
+            </button>
+            <button
+              className={`drawerLink${completedOnly ? " on" : ""}`}
+              onClick={() => {
+                toggleCompleted();
+                setDrawer(false);
+              }}
+            >
+              ✓ Completed
+            </button>
+          </div>
+        </div>
+      )}
+
       {openRecipe && (
         <div
           className="modal open"
@@ -522,33 +765,33 @@ export default function CleanCakesApp() {
             <button className="close" onClick={() => setOpenRecipeId(null)}>
               ×
             </button>
-            <div>
-              <span className="badge">
-                {openRecipe.cat} • Recipe #{openRecipe.id}
-              </span>
-              <h2>
-                {openRecipe.emoji} {openRecipe.title}
-              </h2>
-              <p>{openRecipe.desc}</p>
-              <div className="recipeCheck">
-                <span>✓ Exact ingredient amounts</span>
-                <span>✓ Oven temperature</span>
-                <span>✓ Baking / chilling time</span>
+            <div className="mhead">
+              <div className={`mcover ${COVER_CLASS[openRecipe.cat] ?? "gcakes"}`}>
+                <span className="food">{openRecipe.emoji}</span>
               </div>
+              <div className="mheadInfo">
+                <span className="badge">
+                  {openRecipe.cat} • Recipe #{openRecipe.id}
+                </span>
+                <h2>{openRecipe.title}</h2>
+                <p>{openRecipe.desc}</p>
+              </div>
+            </div>
+            <div className="modalBody">
               {(() => {
                 const s = summaryFor(openRecipe);
                 return (
                   <div className="recipeSummary">
                     <div>
-                      <b>Temperature</b>
+                      <b>🌡 Temperature</b>
                       <small>{s.oven}</small>
                     </div>
                     <div>
-                      <b>Pan / Format</b>
+                      <b>🥧 Pan / Format</b>
                       <small>{s.pan}</small>
                     </div>
                     <div>
-                      <b>Total Time</b>
+                      <b>⏱ Total Time</b>
                       <small>{s.bake}</small>
                     </div>
                   </div>
@@ -559,35 +802,49 @@ export default function CleanCakesApp() {
                 listed below. Sweetener, cocoa, milk, flour and other
                 recipe-specific additions are shown with their amounts.
               </div>
-              <div className="cols">
-                <div>
-                  <h3>Ingredients — Exact Amounts</h3>
-                  <ul>
-                    {openRecipe.ingredients.map((x) => (
-                      <li key={x}>{x}</li>
-                    ))}
-                  </ul>
+              <div className="msec">
+                <h3>
+                  Ingredients
+                  <span className="cnt">{openRecipe.ingredients.length}</span>
+                </h3>
+                <ul className="ings">
+                  {openRecipe.ingredients.map((x) => (
+                    <li key={x}>{x}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="msec">
+                <h3>
+                  Method
+                  <span className="cnt">{openRecipe.steps.length} steps</span>
+                </h3>
+                <ol className="steps">
+                  {openRecipe.steps.map((x, i) => (
+                    <li key={i}>{x}</li>
+                  ))}
+                </ol>
+                <div className="note">
+                  <b>Baker&apos;s note:</b> {openRecipe.note}
                 </div>
-                <div>
-                  <h3>Method</h3>
-                  <ol>
-                    {openRecipe.steps.map((x, i) => (
-                      <li key={i}>{x}</li>
-                    ))}
-                  </ol>
-                  <div className="note">
-                    <b>Baker&apos;s note:</b> {openRecipe.note}
-                  </div>
-                  <div className="note" style={{ marginTop: 10 }}>
-                    <b>Blood-sugar note:</b> No-added-sugar does not mean
-                    carb-free. Check the total carbohydrates in your
-                    ingredients and serving size, and follow your personal
-                    diabetes care plan.
-                  </div>
+                <div className="note gray">
+                  <b>Blood-sugar note:</b> No-added-sugar does not mean
+                  carb-free. Check the total carbohydrates in your
+                  ingredients and serving size, and follow your personal
+                  diabetes care plan.
                 </div>
               </div>
+            </div>
+            <div className="modalFoot">
               <button
-                className="btn primary doneBtn"
+                className={`btnGreen light favBtn${favs.includes(openRecipe.id) ? " on" : ""}`}
+                onClick={() => toggleFav(openRecipe.id)}
+              >
+                {favs.includes(openRecipe.id)
+                  ? "♥ Favorited"
+                  : "♡ Add to Favorites"}
+              </button>
+              <button
+                className="btnGreen doneBtn"
                 onClick={() => toggleDone(openRecipe.id)}
               >
                 {completed.includes(openRecipe.id)
@@ -610,31 +867,41 @@ export default function CleanCakesApp() {
             <button className="close" onClick={() => setOpenFrostIndex(null)}>
               ×
             </button>
-            <div>
-              <h2>
-                {openFrost[1]} {openFrost[0]}
-              </h2>
-              <div className="cols">
-                <div>
-                  <h3>Ingredients</h3>
-                  <ul>
-                    {openFrost[2].map((x) => (
-                      <li key={x}>{x}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h3>Method</h3>
-                  <ol>
-                    {openFrost[3].map((x, i) => (
-                      <li key={i}>{x}</li>
-                    ))}
-                  </ol>
-                  <div className="note">
-                    <b>Blood-sugar note:</b> Sugar-free does not mean
-                    carbohydrate-free. Check labels, total carbs and serving
-                    size according to your care plan.
-                  </div>
+            <div className="mhead">
+              <div className="mcover soft">
+                <span className="food">{openFrost[1]}</span>
+              </div>
+              <div className="mheadInfo">
+                <span className="badge">The Frosting Book • Bonus</span>
+                <h2>{openFrost[0]}</h2>
+              </div>
+            </div>
+            <div className="modalBody">
+              <div className="msec">
+                <h3>
+                  Ingredients
+                  <span className="cnt">{openFrost[2].length}</span>
+                </h3>
+                <ul className="ings">
+                  {openFrost[2].map((x) => (
+                    <li key={x}>{x}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="msec">
+                <h3>
+                  Method
+                  <span className="cnt">{openFrost[3].length} steps</span>
+                </h3>
+                <ol className="steps">
+                  {openFrost[3].map((x, i) => (
+                    <li key={i}>{x}</li>
+                  ))}
+                </ol>
+                <div className="note gray">
+                  <b>Blood-sugar note:</b> Sugar-free does not mean
+                  carbohydrate-free. Check labels, total carbs and serving
+                  size according to your care plan.
                 </div>
               </div>
             </div>
@@ -642,15 +909,21 @@ export default function CleanCakesApp() {
         </div>
       )}
 
-      <footer>
-        For general recipe information only — not medical advice. “Sugar-free”
-        or “no added sugar” does not mean carbohydrate-free or guaranteed to
-        prevent a blood-glucose rise. Flour, milk, fruit, chocolate, portion
-        size and sweetener formulation can all affect total carbohydrates and
-        individual glucose response. If you manage diabetes, use the
-        carbohydrate and portion guidance from your clinician or dietitian,
-        check product labels, and monitor your response as directed in your
-        care plan.
+      <footer className="foot">
+        <div className="footApps">
+          <span>Explore more apps</span>
+          <AppSwitcher />
+        </div>
+        <p>
+          For general recipe information only — not medical advice.
+          “Sugar-free” or “no added sugar” does not mean carbohydrate-free or
+          guaranteed to prevent a blood-glucose rise. Flour, milk, fruit,
+          chocolate, portion size and sweetener formulation can all affect
+          total carbohydrates and individual glucose response. If you manage
+          diabetes, use the carbohydrate and portion guidance from your
+          clinician or dietitian, check product labels, and monitor your
+          response as directed in your care plan.
+        </p>
       </footer>
     </>
   );

@@ -1,17 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, Playfair_Display } from "next/font/google";
+import { Caveat, Nunito_Sans } from "next/font/google";
 import CleanCakesApp from "./CleanCakesApp";
 import "./styles.css";
 
-const dmSans = DM_Sans({
+const nunitoSans = Nunito_Sans({
   subsets: ["latin"],
-  variable: "--font-dm-sans",
+  variable: "--font-nunito",
   display: "swap",
 });
 
-const playfairDisplay = Playfair_Display({
+const caveat = Caveat({
   subsets: ["latin"],
-  variable: "--font-playfair",
+  weight: ["600", "700"],
+  variable: "--font-caveat",
   display: "swap",
 });
 
@@ -23,12 +24,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#38281f",
+  themeColor: "#fbfaf9",
 };
 
 export default function Page() {
   return (
-    <div className={`cc flex-1 ${dmSans.variable} ${playfairDisplay.variable}`}>
+    <div className={`cc flex-1 ${nunitoSans.variable} ${caveat.variable}`}>
       <CleanCakesApp />
     </div>
   );
