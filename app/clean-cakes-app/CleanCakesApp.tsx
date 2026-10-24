@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import AppSwitcher from "../components/AppSwitcher";
+import ContactButton from "../components/ContactButton";
+import FootDivider from "../components/FootDivider";
+import ScrollTop from "../components/ScrollTop";
 import { useLocalList, setLocalList } from "../components/useLocalList";
 import {
   fixes,
@@ -180,6 +183,7 @@ export default function CleanCakesApp() {
   const completed = useLocalList<number>("cc_done");
   const [openRecipeId, setOpenRecipeId] = useState<number | null>(null);
   const [openFrostIndex, setOpenFrostIndex] = useState<number | null>(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
 
   useEffect(() => {
     document.body.style.overflow =
@@ -241,6 +245,17 @@ export default function CleanCakesApp() {
   const openFrost =
     openFrostIndex !== null ? frostings[openFrostIndex] ?? null : null;
 
+  const suggestions = (() => {
+    if (!openRecipe) return [];
+    const pool = rows.some((r) => r.id === openRecipe.id) ? rows : recipes;
+    const start = pool.findIndex((r) => r.id === openRecipe.id) + 1;
+    const count = Math.min(4, Math.max(0, pool.length - 1));
+    return Array.from(
+      { length: count },
+      (_, i) => pool[(start + i) % pool.length],
+    );
+  })();
+
   function toggleFav(id: number) {
     const next = favs.includes(id)
       ? favs.filter((x) => x !== id)
@@ -248,11 +263,19 @@ export default function CleanCakesApp() {
     setLocalList("cc_favs", next);
   }
 
-  function toggleDone(id: number) {
-    const next = completed.includes(id)
-      ? completed.filter((x) => x !== id)
-      : [...completed, id];
-    setLocalList("cc_done", next);
+  function markComplete(id: number) {
+    if (completed.includes(id)) return;
+    setLocalList("cc_done", [...completed, id]);
+  }
+
+  function openRecipeAt(id: number) {
+    setSuggestOpen(false);
+    setOpenRecipeId(id);
+  }
+
+  function closeRecipe() {
+    setSuggestOpen(false);
+    setOpenRecipeId(null);
   }
 
   function toggleFavorites() {
@@ -420,11 +443,11 @@ export default function CleanCakesApp() {
                     className="card"
                     role="button"
                     tabIndex={0}
-                    onClick={() => setOpenRecipeId(r.id)}
+                    onClick={() => openRecipeAt(r.id)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        setOpenRecipeId(r.id);
+                        openRecipeAt(r.id);
                       }
                     }}
                   >
@@ -733,13 +756,58 @@ export default function CleanCakesApp() {
         <div
           className="modal open"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setOpenRecipeId(null);
+            if (e.target === e.currentTarget) closeRecipe();
           }}
         >
           <div className="box">
-            <button className="close" onClick={() => setOpenRecipeId(null)}>
+            <button className="close" onClick={closeRecipe}>
               ×
             </button>
+            {suggestOpen ? (
+              <div className="nextPanel">
+                <div className="nextHead">
+                  <span className="badge">Keep cooking</span>
+                  <h2>Your next 4 recipes</h2>
+                  <p>Pick one to open it right away.</p>
+                </div>
+                <div className="nextGrid">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      className="nextCard"
+                      onClick={() => openRecipeAt(s.id)}
+                    >
+                      <span
+                        className={`nextEmoji ${COVER_CLASS[s.cat] ?? "gcakes"}`}
+                      >
+                        {s.emoji}
+                      </span>
+                      <span className="nextInfo">
+                        <b>{s.title}</b>
+                        <small>
+                          {s.cat} • {s.level} • {s.time}
+                        </small>
+                        <span className="rate">
+                          <Stars value={Number(ratingFor(s.id))} />
+                          <span className="num">{ratingFor(s.id)}</span>
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <div className="nextFoot">
+                  <button
+                    type="button"
+                    className="btnGreen light"
+                    onClick={() => setSuggestOpen(false)}
+                  >
+                    ← Back to recipe
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
             <div className="mhead">
               <div className={`mcover ${COVER_CLASS[openRecipe.cat] ?? "gcakes"}`}>
                 <span className="food">{openRecipe.emoji}</span>
@@ -818,15 +886,24 @@ export default function CleanCakesApp() {
                   ? "♥ Favorited"
                   : "♡ Add to Favorites"}
               </button>
-              <button
-                className="btnGreen doneBtn"
-                onClick={() => toggleDone(openRecipe.id)}
-              >
-                {completed.includes(openRecipe.id)
-                  ? "✓ Completed — Click to Undo"
-                  : "Mark This Recipe Complete"}
-              </button>
+              {completed.includes(openRecipe.id) ? (
+                <button
+                  className="btnGreen doneBtn"
+                  onClick={() => setSuggestOpen(true)}
+                >
+                  Next Recipe →
+                </button>
+              ) : (
+                <button
+                  className="btnGreen doneBtn"
+                  onClick={() => markComplete(openRecipe.id)}
+                >
+                  Mark This Recipe Complete
+                </button>
+              )}
             </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -884,21 +961,22 @@ export default function CleanCakesApp() {
         </div>
       )}
 
+      <ScrollTop hidden={openRecipeId !== null || openFrostIndex !== null} />
+      <ContactButton />
+
       <footer className="foot">
+        <FootDivider />
         <div className="footApps">
           <span>Explore more apps</span>
           <AppSwitcher />
         </div>
-        <p>
-          For general recipe information only — not medical advice.
-          “Sugar-free” or “no added sugar” does not mean carbohydrate-free or
-          guaranteed to prevent a blood-glucose rise. Flour, milk, fruit,
-          chocolate, portion size and sweetener formulation can all affect
-          total carbohydrates and individual glucose response. If you manage
-          diabetes, use the carbohydrate and portion guidance from your
-          clinician or dietitian, check product labels, and monitor your
-          response as directed in your care plan.
-        </p>
+        <Image
+          className="footHint"
+          src="/hint.png"
+          alt="Recipe information and blood-sugar disclaimer"
+          width={2172}
+          height={724}
+        />
       </footer>
     </>
   );

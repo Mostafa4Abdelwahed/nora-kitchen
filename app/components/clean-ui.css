@@ -1245,12 +1245,53 @@ tr th {
 /* ---------- Footer ---------- */
 
 .nkw .foot {
+  margin-top: 80px;
   text-align: center;
   color: var(--muted);
   font-size: 12.5px;
   font-weight: 600;
   line-height: 1.65;
-  padding: 56px 24px 44px;
+  padding: 0 24px 44px;
+}
+
+.nkw .footDivider {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 0 0 48px;
+}
+
+.nkw .footDivider::before,
+.nkw .footDivider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.nkw .footTop {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--green);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--green);
+  transition: transform 0.15s ease, background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.nkw .footTop:hover {
+  background: var(--green-soft);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(21, 128, 61, 0.18);
+}
+
+.nkw .footTop svg {
+  width: 20px;
+  height: 20px;
 }
 
 .nkw .footApps {
@@ -1266,6 +1307,14 @@ tr th {
   font-weight: 800;
   font-size: 13px;
   color: var(--ink2);
+}
+
+.nkw .footHint {
+  display: block;
+  width: 100%;
+  max-width: 720px;
+  height: auto;
+  margin: 0 auto;
 }
 
 .nkw .tab {
@@ -1352,6 +1401,18 @@ tr th {
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+.nkw .drawerBox .appLinks {
+  display: block !important;
+  overflow: visible !important;
+}
+
+.nkw .drawerBox .appLinks .tab {
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 13px 16px;
+  font-size: 14px;
 }
 
 .nkw .secHide {
@@ -1494,6 +1555,210 @@ tr th {
   font-weight: 900;
   color: var(--green-text);
   letter-spacing: -0.5px;
+}
+
+/* ---------- Scroll to top ---------- */
+
+.nkw .toTop {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 90;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--green);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--green);
+  box-shadow: 0 8px 24px rgba(28, 41, 34, 0.16);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.nkw .toTop:hover {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(21, 128, 61, 0.28);
+}
+
+.nkw .toTop svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* ---------- Contact us (Messenger) ---------- */
+
+.nkw .contactWrap {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+}
+
+.nkw .contactBtn {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #0084ff;
+  color: #fff;
+  box-shadow: 0 10px 26px rgba(0, 132, 255, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.nkw .contactBtn:hover {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 14px 30px rgba(0, 132, 255, 0.45);
+}
+
+.nkw .contactBtn svg {
+  width: 27px;
+  height: 27px;
+}
+
+.nkw .contactTip {
+  position: absolute;
+  right: calc(100% + 14px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: block;
+  width: max-content;
+  max-width: 230px;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  box-shadow: 0 10px 26px rgba(28, 41, 34, 0.16);
+  animation: contactTipIn 0.25s ease both;
+}
+
+.nkw .contactTip:hover {
+  border-color: var(--green);
+}
+
+.nkw .contactTip::after {
+  content: "";
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  background: #fff;
+  border-right: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+
+@keyframes contactTipIn {
+  from {
+    opacity: 0;
+    transform: translate(8px, -50%);
+  }
+}
+
+/* ---------- Next recipe suggestions ---------- */
+
+.nkw .nextPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+  padding: 4px 2px 0;
+}
+
+.nkw .nextHead {
+  padding-right: 46px;
+}
+
+.nkw .nextHead h2 {
+  margin: 10px 0 4px;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.4px;
+  line-height: 1.15;
+}
+
+.nkw .nextHead p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
+.nkw .nextGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.nkw .nextCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  padding: 12px;
+  transition: border-color 0.15s ease, background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.nkw .nextCard:hover {
+  border-color: var(--green);
+  background: var(--green-soft);
+  transform: translateY(-2px);
+}
+
+.nkw .nextEmoji {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  flex: none;
+}
+
+.nkw .nextInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.nkw .nextInfo b {
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.3;
+}
+
+.nkw .nextInfo small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.nkw .nextInfo .rate {
+  margin: 2px 0 0;
+}
+
+.nkw .nextFoot {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: auto;
 }
 
 /* ---------- Responsive ---------- */
@@ -1823,6 +2088,29 @@ tr th {
     gap: 8px;
   }
 
+  .nkw .modalFoot {
+    flex-wrap: wrap;
+  }
+
+  .nkw .modalFoot .btnGreen {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  .nkw .modalFoot .favBtn,
+  .nkw .modalFoot .btnGreen.light:not(.favBtn) {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .nkw .modalFoot .doneBtn {
+    flex: 1 1 100%;
+    white-space: normal;
+    line-height: 1.35;
+    text-align: center;
+  }
+
   .nkw .close {
     right: 12px;
     top: 12px;
@@ -1892,5 +2180,66 @@ tr th {
 
   .nkw .mini.sq {
     width: 31px;
+  }
+}
+
+@media (max-width: 640px) {
+  .nkw .nextGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .nkw .nextHead h2 {
+    font-size: 20px;
+  }
+
+  .nkw .toTop,
+  .nkw .contactBtn {
+    width: 48px;
+    height: 48px;
+  }
+
+  .nkw .toTop {
+    bottom: 16px;
+    left: 16px;
+  }
+
+  .nkw .contactWrap {
+    right: 16px;
+    bottom: 16px;
+  }
+
+  .nkw .foot {
+    margin-top: 56px;
+  }
+
+  .nkw .footDivider {
+    gap: 14px;
+    margin-bottom: 36px;
+  }
+
+  .nkw .contactTip {
+    right: 0;
+    top: auto;
+    bottom: calc(100% + 12px);
+    transform: none;
+    max-width: 210px;
+    animation: contactTipInMobile 0.25s ease both;
+  }
+
+  .nkw .contactTip::after {
+    right: 18px;
+    top: auto;
+    bottom: -6px;
+    margin-top: 0;
+    border-top: 0;
+    border-bottom: 1px solid var(--line);
+    transform: rotate(45deg);
+  }
+}
+
+@keyframes contactTipInMobile {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
   }
 }

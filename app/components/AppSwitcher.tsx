@@ -12,7 +12,7 @@ const LINKS: { href: string; label: string }[] = [
 export default function AppSwitcher() {
   const pathname = usePathname();
   return (
-    <div style={{ display: "flex", gap: 8, overflow: "auto" }}>
+    <div className="appLinks" style={{ display: "flex", gap: 8, overflow: "auto" }}>
       {LINKS.map((l) => (
         <Link
           key={l.href}

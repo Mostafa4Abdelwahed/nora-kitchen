@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import AppSwitcher from "../components/AppSwitcher";
+import ContactButton from "../components/ContactButton";
+import FootDivider from "../components/FootDivider";
+import ScrollTop from "../components/ScrollTop";
 import {
   PAGE,
   ICONS,
@@ -823,15 +826,24 @@ export default function CleanKitchenUltimate() {
         </div>
       )}
 
+      <ScrollTop
+        hidden={openRecipeId !== null || openBonusIndex !== null}
+      />
+      <ContactButton />
+
       <footer className="foot">
+        <FootDivider />
         <div className="footApps">
           <span>Explore more apps</span>
           <AppSwitcher />
         </div>
-        <p>
-          For general recipe and meal-planning information only. Individual
-          dietary needs vary.
-        </p>
+        <Image
+          className="footHint"
+          src="/hint.png"
+          alt="Recipe information and blood-sugar disclaimer"
+          width={2172}
+          height={724}
+        />
       </footer>
     </>
   );
